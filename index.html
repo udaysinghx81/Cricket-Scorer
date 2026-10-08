@@ -1,0 +1,1046 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Cricket Scorer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,700;1,9..144,500;1,9..144,600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);--sat:env(safe-area-inset-top,0px);--sab:env(safe-area-inset-bottom,0px)}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{background:#050508;color:#EEF2FF;-webkit-tap-highlight-color:transparent;overflow-x:hidden}
+input,select,button,textarea{font-family:inherit}
+select option{background:#08080f}
+input[type=number]::-webkit-inner-spin-button{opacity:.5}
+::-webkit-scrollbar{width:3px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:rgba(14,165,233,0.25);border-radius:4px}
+#ambient{position:fixed;inset:0;pointer-events:none;z-index:0;
+  background:
+    radial-gradient(ellipse 130% 55% at 50% 115%, rgba(14,165,233,0.16) 0%, transparent 55%),
+    radial-gradient(ellipse 70% 50% at 88% -8%, rgba(109,40,217,0.11) 0%, transparent 52%),
+    radial-gradient(ellipse 55% 40% at 8% 35%, rgba(220,38,38,0.06) 0%, transparent 50%),
+    radial-gradient(ellipse 80% 35% at 50% 50%, rgba(14,165,233,0.03) 0%, transparent 65%);
+  animation:ambPulse 10s ease-in-out infinite}
+@keyframes ambPulse{0%,100%{opacity:.75}50%{opacity:1}}
+#root{position:relative;z-index:1}
+@keyframes scoreGlow{0%,100%{text-shadow:0 0 30px rgba(14,165,233,0.35),0 0 60px rgba(14,165,233,0.15)}50%{text-shadow:0 0 50px rgba(14,165,233,0.55),0 0 100px rgba(14,165,233,0.25)}}
+@keyframes shimmer{0%{background-position:200% center}100%{background-position:-200% center}}
+</style>
+</head>
+<body>
+<div id="ambient"></div>
+<div id="root"></div>
+<script type="text/babel" data-presets="react">
+const {useState,useEffect,useRef,useCallback}=React;
+
+/* ── COLOURS ── */
+const C={bg:"#050508",surface:"rgba(255,255,255,0.04)",surface2:"rgba(255,255,255,0.07)",line:"rgba(255,255,255,0.08)",lineSoft:"rgba(255,255,255,0.04)",text:"#EEF2FF",textMuted:"rgba(180,200,255,0.45)",accent:"#0EA5E9",accentSoft:"rgba(14,165,233,0.12)",accentText:"#7DD3FC",accentGlow:"rgba(14,165,233,0.3)",six:"#DC2626",sixSoft:"rgba(220,38,38,0.12)",sixGlow:"rgba(220,38,38,0.3)",four:"#0EA5E9",fourSoft:"rgba(14,165,233,0.1)",gold:"#F59E0B"};
+const DF="'Fraunces',Georgia,serif";
+const NF="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace";
+
+/* ── ICONS (inline SVG) ── */
+const Ico=({size=24,children,style})=><svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={style}>{children}</svg>;
+const HomeIcon=({size=24})=><Ico size={size}><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></Ico>;
+const Users=({size=24})=><Ico size={size}><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></Ico>;
+const Trophy=({size=24})=><Ico size={size}><polyline points="8 3 4 3 4 10 20 10 20 3 16 3"/><path d="M12 10v7m-4 4h8M12 17v4"/><path d="M4 10c0 4 2 6 8 6s8-2 8-6"/></Ico>;
+const Plus=({size=24})=><Ico size={size}><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></Ico>;
+const Xmark=({size=24})=><Ico size={size}><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></Ico>;
+const Camera=({size=24})=><Ico size={size}><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></Ico>;
+const ChevronUp=({size=24})=><Ico size={size}><polyline points="18 15 12 9 6 15"/></Ico>;
+const ChevronDown=({size=24})=><Ico size={size}><polyline points="6 9 12 15 18 9"/></Ico>;
+const Undo2=({size=24})=><Ico size={size}><path d="M9 14L4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></Ico>;
+const ArrowLeft=({size=24})=><Ico size={size}><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></Ico>;
+const Trash2=({size=24})=><Ico size={size}><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></Ico>;
+const Swords=({size=24})=><Ico size={size}><polyline points="14.5 17.5 3 6 3 3 6 3 17.5 14.5"/><line x1="13" y1="19" x2="19" y2="13"/><line x1="16" y1="16" x2="20" y2="20"/><line x1="19" y1="21" x2="21" y2="19"/><polyline points="14.5 6.5 18 3 21 3 21 6 17.5 9.5"/><line x1="5" y1="14" x2="9" y2="18"/><line x1="7" y1="11" x2="11" y2="15"/></Ico>;
+
+/* ── HELPERS ── */
+function uid(p="id"){return p+"_"+Math.random().toString(36).slice(2,9)}
+function clone(o){return JSON.parse(JSON.stringify(o))}
+function oversStr(b){return`${Math.floor(b/6)}.${b%6}`}
+function clamp(n,a,b){return Math.max(a,Math.min(b,n))}
+async function resizeImg(file,max=160){
+  return new Promise((res,rej)=>{
+    const r=new FileReader();
+    r.onload=e=>{const img=new Image();img.onload=()=>{let{width:w,height:h}=img;if(w>h){if(w>max){h=Math.round(h*(max/w));w=max}}else{if(h>max){w=Math.round(w*(max/h));h=max}}const c=document.createElement("canvas");c.width=w;c.height=h;c.getContext("2d").drawImage(img,0,0,w,h);res(c.toDataURL("image/jpeg",.72))};img.onerror=rej;img.src=e.target.result};r.onerror=rej;r.readAsDataURL(file);
+  });
+}
+
+/* ── SCORING ENGINE ── */
+function newInn(batTeam,bowlTeam,num){
+  return{num,batId:batTeam.id,bowlId:bowlTeam.id,totalBatters:batTeam.players.length,
+    runs:0,wickets:0,balls:0,target:null,overBalls:[],outIds:[],battingOrderUsed:[],
+    batsmen:{},bowlers:{},striker:null,nonStriker:null,bowler:null,
+    needBowler:true,completed:false};
+}
+function eb(inn,id){if(!inn.batsmen[id])inn.batsmen[id]={runs:0,balls:0,fours:0,sixes:0,out:false,howOut:null}}
+function ebw(inn,id){if(!inn.bowlers[id])inn.bowlers[id]={balls:0,runs:0,wickets:0}}
+function swap(inn){if(inn.nonStriker!=null){const t=inn.striker;inn.striker=inn.nonStriker;inn.nonStriker=t}}
+function eligible(inn,players){return players.filter(p=>!inn.outIds.includes(p.id)&&p.id!==inn.striker&&p.id!==inn.nonStriker)}
+function needStriker(inn,pl){return inn.striker==null&&eligible(inn,pl).length>0}
+function needNonStriker(inn,pl){return inn.nonStriker==null&&inn.striker!=null&&eligible(inn,pl).length>0}
+function setBatter(inn,id){eb(inn,id);inn.battingOrderUsed.push(id);if(inn.striker==null)inn.striker=id;else inn.nonStriker=id}
+function setBowler(inn,id){ebw(inn,id);inn.bowler=id;inn.needBowler=false}
+
+function bowl(inn,ev,bwlId){
+  ebw(inn,bwlId);inn.bowler=bwlId;
+  let legal=true,label="";
+  if(ev.kind==="RUN"){
+    inn.runs+=ev.runs;const b=inn.batsmen[inn.striker];b.runs+=ev.runs;b.balls++;
+    if(ev.runs===4)b.fours++;if(ev.runs===6)b.sixes++;
+    inn.bowlers[bwlId].runs+=ev.runs;label=""+ev.runs;
+    if(ev.runs%2===1)swap(inn);
+  } else if(ev.kind==="EXTRA"){
+    if(ev.type==="WD"){legal=false;const tot=1+(ev.runs||0);inn.runs+=tot;inn.bowlers[bwlId].runs+=tot;label="WD"}
+    else if(ev.type==="NB"){legal=false;const tot=1+(ev.runs||0);inn.runs+=tot;inn.bowlers[bwlId].runs+=tot;if(ev.runs){const b=inn.batsmen[inn.striker];b.runs+=ev.runs;if(ev.runs===4)b.fours++;if(ev.runs===6)b.sixes++}label="NB"}
+    else{inn.runs+=ev.runs;inn.bowlers[bwlId].runs+=ev.runs;inn.batsmen[inn.striker].balls++;label=ev.type;if(ev.runs%2===1)swap(inn)}
+  } else if(ev.kind==="WICKET"){
+    const dId=ev.dismissedId||inn.striker;
+    if(ev.runsCompleted){inn.runs+=ev.runsCompleted;inn.batsmen[inn.striker].runs+=ev.runsCompleted;inn.bowlers[bwlId].runs+=ev.runsCompleted}
+    inn.batsmen[inn.striker].balls++;inn.batsmen[dId].out=true;inn.batsmen[dId].howOut=ev.howOut||"out";
+    if(!ev.noBallCredit)inn.bowlers[bwlId].wickets++;
+    inn.wickets++;inn.outIds.push(dId);label="W";
+    if(dId===inn.striker)inn.striker=null;else if(dId===inn.nonStriker)inn.nonStriker=null;
+    const elig=(ev.teamPlayers||[]).filter(p=>!inn.outIds.includes(p.id)&&p.id!==inn.striker&&p.id!==inn.nonStriker);
+    if(elig.length===0&&inn.striker==null&&inn.nonStriker!=null){inn.striker=inn.nonStriker;inn.nonStriker=null}
+    if(inn.striker==null&&inn.nonStriker==null)inn.completed=true;
+  }
+  if(legal){inn.balls++;inn.bowlers[bwlId].balls++}
+  inn.overBalls.push({label,legal});
+  if(legal&&inn.balls%6===0&&!inn.completed){inn.overBalls=[];swap(inn);inn.needBowler=true}
+  return inn;
+}
+
+/* ── MATCH ORCHESTRATION ── */
+function teamById(cfg,id){return cfg.teamA.id===id?cfg.teamA:cfg.teamB}
+function batFirst(m){return teamById(m.cfg,m.cfg.batFirstId)}
+function bowlFirst(m){return m.cfg.teamA.id===m.cfg.batFirstId?m.cfg.teamB:m.cfg.teamA}
+function curInn(m){return m.innings[m.innIdx]}
+function teamsFor(m,inn){return{bat:teamById(m.cfg,inn.batId),bowl:teamById(m.cfg,inn.bowlId)}}
+
+function makeInn(m,idx){
+  const role=m.plan[idx];
+  const bat=role==="first"?batFirst(m):bowlFirst(m);
+  const bowl=role==="first"?bowlFirst(m):batFirst(m);
+  const inn=newInn(bat,bowl,idx+1);
+  if(idx===m.plan.length-1){
+    const opp=m.innings.filter(i=>i.batId===bowl.id).reduce((s,i)=>s+i.runs,0);
+    const own=m.innings.filter(i=>i.batId===bat.id).reduce((s,i)=>s+i.runs,0);
+    inn.target=opp-own+1;
+  }
+  return inn;
+}
+
+function autoFill(m){
+  const inn=curInn(m);if(!inn||inn.completed)return m;
+  const {bat,bowl}=teamsFor(m,inn);
+  if(inn.needBowler&&bowl.players.length===1)setBowler(inn,bowl.players[0].id);
+  if(needStriker(inn,bat.players)){const e=eligible(inn,bat.players);if(e.length===1)setBatter(inn,e[0].id)}
+  if(needNonStriker(inn,bat.players)){const e=eligible(inn,bat.players);if(e.length===1)setBatter(inn,e[0].id)}
+  return m;
+}
+
+function computeResult(m){
+  const aT=m.innings.filter(i=>i.batId===m.cfg.teamA.id).reduce((s,i)=>s+i.runs,0);
+  const bT=m.innings.filter(i=>i.batId===m.cfg.teamB.id).reduce((s,i)=>s+i.runs,0);
+  const last=m.innings[m.innings.length-1];
+  if(last.target!=null&&last.runs>=last.target){
+    const wt=teamById(m.cfg,last.batId);const wl=Math.max(0,last.totalBatters-1-last.wickets);
+    return{aT,bT,text:`${wt.name} won by ${wl} wicket${wl===1?"":"s"}`}
+  }
+  if(aT===bT)return{aT,bT,text:"Match tied"};
+  const winner=aT>bT?m.cfg.teamA:m.cfg.teamB;const margin=Math.abs(aT-bT);
+  return{aT,bT,text:`${winner.name} won by ${margin} run${margin===1?"":"s"}`};
+}
+
+function checkEnd(m){
+  let inn=curInn(m);if(!inn.completed){
+    if(m.cfg.oversLimit!=null&&inn.balls>=m.cfg.oversLimit*6)inn.completed=true;
+    if(inn.target!=null&&inn.runs>=inn.target)inn.completed=true;
+  }
+  if(!inn.completed)return m;
+  const isLast=m.innIdx===m.plan.length-1;
+  if(isLast){m.status="done";m.result=computeResult(m)}
+  else{const nxt=m.innIdx+1;m.innings.push(makeInn(m,nxt));m.innIdx=nxt;m=autoFill(m)}
+  return m;
+}
+
+function getPending(m){
+  if(m.status==="done")return null;
+  const inn=curInn(m);const{bat,bowl}=teamsFor(m,inn);
+  if(needStriker(inn,bat.players))return{type:"batter",slot:"striker"};
+  if(needNonStriker(inn,bat.players))return{type:"batter",slot:"nonStriker"};
+  if(inn.needBowler&&bowl.players.length>1)return{type:"bowler"};
+  return null;
+}
+
+function startMatch({teamA,teamB,batFirstId,oversLimit,inningsPerTeam,formatLabel}){
+  const plan=[];
+  for(let i=0;i<inningsPerTeam;i++){plan.push("first");plan.push("second")}
+  let m={cfg:{teamA,teamB,batFirstId,oversLimit,inningsPerTeam,formatLabel},
+    plan,innings:[],innIdx:0,status:"playing",result:null};
+  m.innings.push(makeInn(m,0));
+  m=autoFill(m);
+  return m;
+}
+
+/* ── SHARED UI ── */
+function Avatar({player,size=36}){
+  const init=(player?.name||"?").trim().split(/\s+/).slice(0,2).map(w=>w[0]?.toUpperCase()).join("");
+  return <div style={{width:size,height:size,borderRadius:"50%",overflow:"hidden",flexShrink:0,background:"rgba(255,255,255,0.06)",border:`1px solid ${C.line}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:size*.36,fontWeight:700,color:C.accentText}}>
+    {player?.photo?<img src={player.photo} alt={player.name} style={{width:"100%",height:"100%",objectFit:"cover"}}/>:init||"?"}
+  </div>
+}
+
+function Btn({children,onClick,variant="default",style,disabled,full}){
+  const base={border:"none",cursor:disabled?"not-allowed":"pointer",fontWeight:600,fontSize:14,borderRadius:14,padding:"12px 16px",transition:"opacity 0.15s, transform 0.1s",opacity:disabled?.35:1,width:full?"100%":undefined,display:"flex",alignItems:"center",justifyContent:"center",gap:6};
+  const vs={default:{background:"rgba(255,255,255,0.06)",color:C.text,border:"1px solid rgba(255,255,255,0.1)",backdropFilter:"blur(12px)"},accent:{background:"linear-gradient(135deg,#0EA5E9 0%,#0369A1 100%)",color:"#03070A",boxShadow:"0 4px 24px rgba(14,165,233,0.35), 0 0 0 1px rgba(14,165,233,0.2)"},ghost:{background:"transparent",color:"rgba(180,200,255,0.45)",border:"1px solid rgba(255,255,255,0.08)"},danger:{background:"linear-gradient(135deg,rgba(220,38,38,0.18),rgba(220,38,38,0.06))",color:"#FCA5A5",border:"1px solid rgba(220,38,38,0.35)",boxShadow:"0 0 20px rgba(220,38,38,0.1) inset"}};
+  return<button disabled={disabled} onClick={onClick} style={{...base,...vs[variant],...style}}>{children}</button>
+}
+
+function Card({children,style,onClick}){
+  return<div onClick={onClick} style={{background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.08)",borderRadius:20,padding:16,backdropFilter:"blur(16px)",WebkitBackdropFilter:"blur(16px)",...style}}>{children}</div>
+}
+
+function Hdr({title,onBack,right}){
+  return<div style={{display:"flex",alignItems:"center",gap:10,padding:"18px 18px 10px"}}>
+    {onBack&&<button onClick={onBack} style={{background:"rgba(255,255,255,0.06)",border:"1px solid rgba(255,255,255,0.1)",borderRadius:12,width:38,height:38,display:"flex",alignItems:"center",justifyContent:"center",color:"#EEF2FF",cursor:"pointer",backdropFilter:"blur(8px)"}}><ArrowLeft size={18}/></button>}
+    <div style={{fontFamily:DF,fontSize:22,fontWeight:600,flex:1}}>{title}</div>
+    {right}
+  </div>
+}
+
+function Modal({children,onClose,title}){
+  return<div style={{position:"fixed",inset:0,background:"rgba(1,3,10,.75)",display:"flex",alignItems:"flex-end",justifyContent:"center",zIndex:60}} onClick={e=>{if(e.target===e.currentTarget&&onClose)onClose()}}>
+    <div style={{width:"100%",maxWidth:480,maxHeight:"85vh",overflowY:"auto",background:"rgba(255,255,255,0.04)",borderTop:`1px solid ${C.line}`,borderRadius:"24px 24px 0 0",padding:20,boxShadow:"0 -10px 40px rgba(0,0,0,.5)"}} onClick={e=>e.stopPropagation()}>
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:14}}>
+        <div style={{fontFamily:DF,fontSize:19,fontWeight:600}}>{title}</div>
+        {onClose&&<button onClick={onClose} style={{background:"none",border:"none",color:"rgba(180,200,255,0.45)",cursor:"pointer"}}><Xmark size={20}/></button>}
+      </div>
+      {children}
+    </div>
+  </div>
+}
+
+/* ── BOTTOM NAV ── */
+function BottomNav({screen,setScreen,navItems,open,setOpen}){
+  const items=[["home","Home",HomeIcon],["newMatch","New match",Swords],["teams","Teams",Users],["points","Points table",Trophy]];
+  return<div style={{position:"fixed",left:0,right:0,bottom:0,zIndex:50,display:"flex",justifyContent:"center",padding:12,paddingBottom:"calc(12px + env(safe-area-inset-bottom,0px))"}}>
+    <div style={{width:"100%",maxWidth:480}}>
+      {open&&<div style={{background:"rgba(5,5,8,0.88)",border:"1px solid rgba(255,255,255,0.09)",borderRadius:18,marginBottom:8,overflow:"hidden",backdropFilter:"blur(24px)",WebkitBackdropFilter:"blur(24px)",boxShadow:"0 -4px 40px rgba(0,0,0,0.5)"}}>
+        {(navItems||items).map(([key,lbl,Icon])=>{
+          const active=screen===key;
+          return<button key={key} onClick={()=>{setScreen(key);setOpen(false)}} style={{width:"100%",display:"flex",alignItems:"center",gap:12,padding:"13px 16px",background:active?"rgba(14,165,233,0.1)":"transparent",border:"none",borderBottom:"1px solid rgba(255,255,255,0.05)",color:active?"#7DD3FC":C.text,cursor:"pointer",fontSize:15,fontWeight:500}}>
+            <Icon size={17}/>{lbl}
+          </button>
+        })}
+      </div>}
+      <button onClick={()=>setOpen(v=>!v)} style={{width:"100%",display:"flex",alignItems:"center",justifyContent:"center",gap:8,background:"rgba(255,255,255,0.06)",border:`1px solid ${C.line}`,borderRadius:16,padding:"11px 16px",color:"rgba(150,180,255,0.5)",cursor:"pointer",fontSize:11,fontWeight:700,letterSpacing:1.5,boxShadow:"0 8px 32px rgba(0,0,0,0.6),0 0 0 1px rgba(14,165,233,0.08)",backdropFilter:"blur(24px)",WebkitBackdropFilter:"blur(24px)"}}>
+        {open?<ChevronDown size={16}/>:<ChevronUp size={16}/>} MENU
+      </button>
+    </div>
+  </div>
+}
+
+/* ── HOME ── */
+function HomeScreen({onNew,onTeams,onPoints,hasLive,onResume,hasHistory,onHistory}){
+  return<div style={{paddingBottom:110}}>
+    <div style={{padding:"30px 18px 10px"}}>
+      <div style={{fontSize:11,color:"rgba(14,165,233,0.6)",letterSpacing:2.5,fontWeight:600}}>OVER BY OVER</div>
+      <div style={{fontFamily:DF,fontSize:30,fontWeight:600,marginTop:4,lineHeight:1.2}}>Built for the{" "}<span style={{fontStyle:"italic",color:"#0EA5E9"}}>scorers</span></div>
+    </div>
+    <div style={{padding:"10px 18px",display:"flex",flexDirection:"column",gap:10}}>
+      {hasLive&&<Card onClick={onResume} style={{cursor:"pointer",borderColor:C.accent}}>
+        <div style={{fontSize:12,color:C.accentText,marginBottom:4}}>LIVE</div>
+        <div style={{fontWeight:700}}>Resume match in progress →</div>
+      </Card>}
+      <Card onClick={onNew} style={{cursor:"pointer",display:"flex",alignItems:"center",gap:12}}>
+        <Swords size={20} style={{color:C.accentText}}/><div><div style={{fontWeight:700,fontSize:15}}>New match</div><div style={{fontSize:12.5,color:"rgba(180,200,255,0.45)"}}>Pick teams, format, overs</div></div>
+      </Card>
+      <Card onClick={onTeams} style={{cursor:"pointer",display:"flex",alignItems:"center",gap:12}}>
+        <Users size={20} style={{color:C.accentText}}/><div><div style={{fontWeight:700,fontSize:15}}>Teams</div><div style={{fontSize:12.5,color:"rgba(180,200,255,0.45)"}}>Create and manage squads</div></div>
+      </Card>
+      <Card onClick={onPoints} style={{cursor:"pointer",display:"flex",alignItems:"center",gap:12}}>
+        <Trophy size={20} style={{color:C.accentText}}/><div><div style={{fontWeight:700,fontSize:15}}>Points table</div><div style={{fontSize:12.5,color:"rgba(180,200,255,0.45)"}}>Track a series or tournament</div></div>
+      </Card>
+      {hasHistory&&<Card onClick={onHistory} style={{cursor:"pointer",display:"flex",alignItems:"center",gap:12}}>
+        <div style={{fontSize:20}}>📜</div><div><div style={{fontWeight:700,fontSize:15}}>Match history</div><div style={{fontSize:12.5,color:"rgba(180,200,255,0.45)"}}>Last 20 matches</div></div>
+      </Card>}
+    </div>
+  </div>
+}
+
+/* ── TEAMS ── */
+function TeamsScreen({teams,onNew,onEdit,onDel}){
+  const [conf,setConf]=useState(null);
+  return<div style={{paddingBottom:110}}>
+    <Hdr title="Teams"/>
+    <div style={{padding:"0 18px",display:"flex",flexDirection:"column",gap:10}}>
+      <Btn variant="accent" onClick={onNew} full><Plus size={16}/>New team</Btn>
+      {teams.length===0&&<div style={{color:"rgba(180,200,255,0.45)",fontSize:14,padding:"20px 4px"}}>No teams yet. Any squad size works — you don't need 11.</div>}
+      {teams.map(t=><Card key={t.id} style={{display:"flex",alignItems:"center",gap:12}}>
+        <div style={{display:"flex"}}>{t.players.slice(0,3).map((p,i)=><div key={p.id} style={{marginLeft:i?-10:0}}><Avatar player={p} size={32}/></div>)}</div>
+        <div style={{flex:1}}><div style={{fontWeight:700,fontSize:15}}>{t.name}</div><div style={{color:"rgba(180,200,255,0.45)",fontSize:12.5}}>{t.players.length} player{t.players.length===1?"":"s"}</div></div>
+        <button onClick={()=>onEdit(t)} style={{background:"rgba(255,255,255,0.06)",border:`1px solid ${C.line}`,borderRadius:10,padding:"7px 10px",color:C.text,cursor:"pointer",fontSize:12.5}}>Edit</button>
+        {conf===t.id?<button onClick={()=>{onDel(t.id);setConf(null)}} style={{background:C.six,border:"none",borderRadius:10,padding:"7px 10px",color:"#fff",cursor:"pointer",fontSize:12.5}}>Sure?</button>
+          :<button onClick={()=>setConf(t.id)} style={{background:"transparent",border:"none",color:"rgba(180,200,255,0.45)",cursor:"pointer",padding:6}}><Trash2 size={16}/></button>}
+      </Card>)}
+    </div>
+  </div>
+}
+
+function TeamEditor({initial,onSave,onCancel}){
+  const [team,setTeam]=useState(initial||{id:uid("team"),name:"",players:[{id:uid("p"),name:"",photo:null}]});
+  const refs=useRef({});
+  function upP(id,patch){setTeam(t=>({...t,players:t.players.map(p=>p.id===id?{...p,...patch}:p)}))}
+  function addP(){setTeam(t=>({...t,players:[...t.players,{id:uid("p"),name:"",photo:null}]}))}
+  function remP(id){setTeam(t=>({...t,players:t.players.filter(p=>p.id!==id)}))}
+  async function handlePhoto(id,file){if(!file)return;try{const d=await resizeImg(file,160);upP(id,{photo:d})}catch(e){}}
+  const canSave=team.name.trim().length>0&&team.players.some(p=>p.name.trim().length>0);
+  return<div style={{paddingBottom:110}}>
+    <Hdr title={initial?"Edit team":"New team"} onBack={onCancel}/>
+    <div style={{padding:"0 18px",display:"flex",flexDirection:"column",gap:14}}>
+      <div>
+        <label style={{fontSize:12,color:"rgba(180,200,255,0.45)",display:"block",marginBottom:6}}>TEAM NAME</label>
+        <input value={team.name} onChange={e=>setTeam(t=>({...t,name:e.target.value}))} placeholder="e.g. Sunday Strikers" style={{width:"100%",background:"rgba(255,255,255,0.06)",border:`1px solid ${C.line}`,borderRadius:12,padding:"12px 14px",color:C.text,fontSize:15}}/>
+      </div>
+      <div>
+        <label style={{fontSize:12,color:"rgba(180,200,255,0.45)",display:"block",marginBottom:8}}>PLAYERS ({team.players.length}) — any size squad</label>
+        <div style={{display:"flex",flexDirection:"column",gap:8}}>
+          {team.players.map((p,i)=><div key={p.id} style={{display:"flex",alignItems:"center",gap:8}}>
+            <button onClick={()=>refs.current[p.id]?.click()} style={{background:"none",border:"none",padding:0,cursor:"pointer",position:"relative"}}>
+              <Avatar player={p} size={40}/>
+              <div style={{position:"absolute",bottom:-2,right:-2,background:C.accent,borderRadius:"50%",width:16,height:16,display:"flex",alignItems:"center",justifyContent:"center"}}><Camera size={9} style={{color:"#04141A"}}/></div>
+            </button>
+            <input ref={el=>refs.current[p.id]=el} type="file" accept="image/*" style={{display:"none"}} onChange={e=>handlePhoto(p.id,e.target.files?.[0])}/>
+            <input value={p.name} onChange={e=>upP(p.id,{name:e.target.value})} placeholder={`Player ${i+1}`} style={{flex:1,background:"rgba(255,255,255,0.06)",border:`1px solid ${C.line}`,borderRadius:10,padding:"10px 12px",color:C.text,fontSize:14}}/>
+            <button onClick={()=>remP(p.id)} style={{background:"none",border:"none",color:"rgba(180,200,255,0.45)",cursor:"pointer",padding:6}}><Xmark size={16}/></button>
+          </div>)}
+        </div>
+        <button onClick={addP} style={{marginTop:10,width:"100%",display:"flex",alignItems:"center",justifyContent:"center",gap:6,background:"transparent",border:`1px dashed ${C.line}`,borderRadius:12,padding:"10px",color:"rgba(180,200,255,0.45)",cursor:"pointer",fontSize:13.5}}>
+          <Plus size={15}/>Add player
+        </button>
+      </div>
+      <div style={{display:"flex",gap:10,marginTop:6}}>
+        <Btn variant="ghost" onClick={onCancel} style={{flex:1}}>Cancel</Btn>
+        <Btn variant="accent" disabled={!canSave} onClick={()=>onSave(team)} style={{flex:1}}>Save team</Btn>
+      </div>
+    </div>
+  </div>
+}
+
+/* ── NEW MATCH ── */
+function NewMatchScreen({teams,onStart,onGoTeams}){
+  const [aId,setAId]=useState(teams[0]?.id||null);
+  const [bId,setBId]=useState(teams[1]?.id||null);
+  const [fmt,setFmt]=useState("T20");
+  const [cOv,setCOv]=useState(10);
+  const [ipp,setIpp]=useState(1);
+  const [bat,setBat]=useState(null);
+  const ovLimit=fmt==="T20"?20:fmt==="ODI"?50:fmt==="TEST"?null:cOv;
+  const tA=teams.find(t=>t.id===aId),tB=teams.find(t=>t.id===bId);
+  const canStart=tA&&tB&&tA.id!==tB.id&&(bat===tA?.id||bat===tB?.id);
+  if(teams.length<2)return<div style={{paddingBottom:110}}><Hdr title="New match"/><div style={{padding:"0 18px"}}><Card><div style={{color:"rgba(180,200,255,0.45)",fontSize:14,marginBottom:12}}>You need at least two teams.</div><Btn variant="accent" onClick={onGoTeams} full>Create a team</Btn></Card></div></div>;
+  const TBtn=({val,lbl})=><button onClick={()=>setFmt(val)} style={{padding:"10px 6px",borderRadius:12,border:`1px solid ${fmt===val?C.accent:C.line}`,background:fmt===val?C.accentSoft:C.surface2,color:fmt===val?C.accentText:C.text,fontWeight:600,fontSize:13,cursor:"pointer"}}>{lbl}</button>;
+  const IPBtn=({n})=><button onClick={()=>setIpp(n)} style={{flex:1,padding:"10px 6px",borderRadius:12,border:`1px solid ${ipp===n?C.accent:C.line}`,background:ipp===n?C.accentSoft:C.surface2,color:ipp===n?C.accentText:C.text,fontWeight:600,fontSize:13,cursor:"pointer"}}>{n} innings each</button>;
+  return<div style={{paddingBottom:110}}>
+    <Hdr title="New match"/>
+    <div style={{padding:"0 18px",display:"flex",flexDirection:"column",gap:18}}>
+      <div>
+        <label style={{fontSize:12,color:"rgba(180,200,255,0.45)",display:"block",marginBottom:8}}>TEAMS</label>
+        {[["Team A",aId,setAId,bId],["Team B",bId,setBId,aId]].map(([lbl,val,setter,excl])=><div key={lbl} style={{marginBottom:8}}>
+          <div style={{fontSize:11.5,color:"rgba(180,200,255,0.45)",marginBottom:4}}>{lbl}</div>
+          <select value={val||""} onChange={e=>setter(e.target.value)} style={{width:"100%",background:"rgba(255,255,255,0.06)",border:`1px solid ${C.line}`,borderRadius:12,padding:"11px 12px",color:C.text,fontSize:14}}>
+            <option value="" disabled>Choose a team</option>
+            {teams.map(t=><option key={t.id} value={t.id} disabled={t.id===excl}>{t.name} ({t.players.length})</option>)}
+          </select>
+        </div>)}
+      </div>
+      <div>
+        <label style={{fontSize:12,color:"rgba(180,200,255,0.45)",display:"block",marginBottom:8}}>FORMAT</label>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:8}}>
+          <TBtn val="T20" lbl="T20"/><TBtn val="ODI" lbl="ODI"/><TBtn val="TEST" lbl="Test"/><TBtn val="CUSTOM" lbl="Custom"/>
+        </div>
+        {fmt==="CUSTOM"&&<div style={{marginTop:8,display:"flex",alignItems:"center",gap:10}}>
+          <span style={{fontSize:13,color:"rgba(180,200,255,0.45)"}}>Overs per innings</span>
+          <input type="number" min={1} max={90} value={cOv} onChange={e=>setCOv(clamp(parseInt(e.target.value)||1,1,90))} style={{width:70,background:"rgba(255,255,255,0.06)",border:`1px solid ${C.line}`,borderRadius:10,padding:"8px 10px",color:C.text,fontSize:14,fontFamily:NF}}/>
+        </div>}
+        {fmt==="TEST"&&<div style={{marginTop:8,fontSize:12.5,color:"rgba(180,200,255,0.45)"}}>Unlimited overs per innings.</div>}
+      </div>
+      <div>
+        <label style={{fontSize:12,color:"rgba(180,200,255,0.45)",display:"block",marginBottom:8}}>INNINGS PER TEAM</label>
+        <div style={{display:"flex",gap:8}}><IPBtn n={1}/><IPBtn n={2}/></div>
+      </div>
+      {tA&&tB&&<div>
+        <label style={{fontSize:12,color:"rgba(180,200,255,0.45)",display:"block",marginBottom:8}}>BATS FIRST</label>
+        <div style={{display:"flex",gap:8}}>
+          {[tA,tB].map(t=><button key={t.id} onClick={()=>setBat(t.id)} style={{flex:1,padding:"10px 6px",borderRadius:12,border:`1px solid ${bat===t.id?C.accent:C.line}`,background:bat===t.id?C.accentSoft:C.surface2,color:bat===t.id?C.accentText:C.text,fontWeight:600,fontSize:13,cursor:"pointer"}}>{t.name}</button>)}
+        </div>
+      </div>}
+      <Btn variant="accent" disabled={!canStart} onClick={()=>onStart({teamA:tA,teamB:tB,batFirstId:bat,oversLimit:ovLimit,inningsPerTeam:ipp,formatLabel:fmt==="CUSTOM"?`${cOv} overs`:fmt})} full>Start match</Btn>
+    </div>
+  </div>
+}
+
+/* ── MATCH SCREEN ── */
+function BallDot({ball}){
+  let bg="rgba(255,255,255,0.06)",col=C.text,br="rgba(255,255,255,0.1)",sh="none";
+  if(ball.label==="6"){bg="rgba(220,38,38,0.18)";col="#FCA5A5";br="#DC2626";sh="0 0 10px rgba(220,38,38,0.55)"}
+  else if(ball.label==="4"){bg="rgba(14,165,233,0.18)";col="#7DD3FC";br="#0EA5E9";sh="0 0 8px rgba(14,165,233,0.5)"}
+  else if(ball.label==="W"){bg="rgba(255,255,255,0.18)";col="#FFF";br="rgba(255,255,255,0.6)";sh="0 0 6px rgba(255,255,255,0.3)"}
+  else if(!ball.legal){bg="transparent";col=C.accentText;br=C.accent}
+  return<div style={{minWidth:28,height:28,borderRadius:"50%",background:bg,border:`1.5px solid ${br}`,color:col,display:"flex",alignItems:"center",justifyContent:"center",fontSize:11.5,fontWeight:700,fontFamily:NF,flexShrink:0,boxShadow:sh}}>{ball.label}</div>
+}
+
+function MatchScreen({match,onEvent,onBatter,onBowler,onUndo,canUndo,onDeclare,onExit,modal,setModal}){
+  const inn=curInn(match);
+  const {bat,bowl}=teamsFor(match,inn);
+  const strPl=bat.players.find(p=>p.id===inn.striker);
+  const nsPl=bat.players.find(p=>p.id===inn.nonStriker);
+  const bwlPl=bowl.players.find(p=>p.id===inn.bowler);
+  const strSt=inn.striker?inn.batsmen[inn.striker]:null;
+  const nsSt=inn.nonStriker?inn.batsmen[inn.nonStriker]:null;
+  const bwlSt=inn.bowler?inn.bowlers[inn.bowler]:null;
+  const crr=inn.balls>0?(inn.runs/(inn.balls/6)).toFixed(2):"0.00";
+  const ovLbl=match.cfg.oversLimit!=null?`${oversStr(inn.balls)}/${match.cfg.oversLimit}`:oversStr(inn.balls);
+  let winBar=null;
+  if(inn.target!=null){
+    const rem=inn.target-inn.runs;const bleft=match.cfg.oversLimit!=null?match.cfg.oversLimit*6-inn.balls:null;
+    const rrr=bleft&&bleft>0?rem/(bleft/6):null;
+    const wir=1-inn.wickets/Math.max(1,inn.totalBatters-1);
+    let p=50+(parseFloat(crr)-(rrr||parseFloat(crr)))*4+(wir-.5)*40;
+    if(!rrr)p=50+(wir-.5)*60-Math.min(rem,100)*.2;
+    winBar={prob:clamp(p,2,98),rem,bleft,rrr};
+  }
+  const [xPick,setXPick]=useState(null);
+  const [confExit,setConfExit]=useState(false);
+  const xStyle=(active)=>({padding:"13px 0",borderRadius:12,border:`1px solid ${active?"rgba(14,165,233,0.6)":"rgba(255,255,255,0.08)"}`,background:active?"rgba(14,165,233,0.14)":"rgba(255,255,255,0.05)",color:active?C.accentText:C.text,fontWeight:700,fontSize:13,cursor:"pointer",backdropFilter:"blur(8px)",boxShadow:active?"0 0 14px rgba(14,165,233,0.2) inset":"none"});
+  return<div style={{paddingBottom:130}}>
+    <Hdr title={`${bat.name} vs ${bowl.name}`} onBack={()=>setConfExit(true)} right={
+      <button onClick={onUndo} disabled={!canUndo} style={{background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.09)",borderRadius:12,padding:"8px 10px",color:canUndo?C.text:C.textMuted,cursor:canUndo?"pointer":"not-allowed",display:"flex",alignItems:"center",gap:6,fontSize:12.5,backdropFilter:"blur(8px)"}}>
+        <Undo2 size={14}/>Undo
+      </button>}/>
+    <div style={{padding:"0 18px",display:"flex",flexDirection:"column",gap:14}}>
+      <div style={{fontSize:10.5,color:"rgba(14,165,233,0.5)",letterSpacing:2.5,fontWeight:600}}>{match.cfg.formatLabel?.toUpperCase()} · INNINGS {inn.num} · {bat.name} BATTING</div>
+      <Card style={{position:"relative",overflow:"hidden",background:"linear-gradient(135deg,rgba(14,165,233,0.1) 0%,rgba(109,40,217,0.07) 55%,rgba(5,5,8,0) 100%)",border:"1px solid rgba(14,165,233,0.22)",boxShadow:"0 0 40px rgba(14,165,233,0.07) inset, 0 8px 40px rgba(0,0,0,0.4)"}}>
+        <div style={{position:"absolute",top:-60,right:-60,width:160,height:160,borderRadius:"50%",background:"radial-gradient(circle,rgba(14,165,233,0.24),rgba(109,40,217,0.14) 45%,transparent 70%)"}}/>
+        <div style={{display:"flex",alignItems:"baseline",gap:10}}>
+          <span style={{fontFamily:DF,fontStyle:"italic",fontSize:46,fontWeight:600,animation:"scoreGlow 4s ease-in-out infinite"}}>{inn.runs}</span>
+          <span style={{fontSize:22,color:"rgba(180,200,255,0.45)",fontWeight:600}}>/ {inn.wickets}</span>
+          <span style={{marginLeft:"auto",fontFamily:NF,fontSize:15,color:"rgba(180,200,255,0.45)"}}>{ovLbl} ov</span>
+        </div>
+        <div style={{display:"flex",gap:18,marginTop:6,fontSize:12.5,color:"rgba(180,200,255,0.45)"}}>
+          <span>CRR {crr}</span>{inn.target!=null&&<span>Target {inn.target}</span>}
+        </div>
+        {winBar&&<div style={{marginTop:14}}>
+          <div style={{display:"flex",justifyContent:"space-between",fontSize:11,color:"rgba(180,200,255,0.45)",marginBottom:5}}>
+            <span>Need {Math.max(0,winBar.rem)}{winBar.bleft!=null?` off ${winBar.bleft} balls`:""}</span>
+            <span>{winBar.rrr!=null?`RRR ${winBar.rrr.toFixed(2)}`:""}</span>
+          </div>
+          <div style={{height:8,borderRadius:6,background:"rgba(255,255,255,0.06)",overflow:"hidden",display:"flex"}}>
+            <div style={{width:`${winBar.prob}%`,background:"linear-gradient(to right,#0EA5E9,#6D28D9,#DC2626)",transition:"width 0.4s ease"}}/>
+          </div>
+          <div style={{display:"flex",justifyContent:"space-between",fontSize:11,marginTop:4,color:"rgba(180,200,255,0.45)"}}>
+            <span style={{color:C.accentText}}>{bat.name} {winBar.prob.toFixed(0)}%</span>
+            <span>{bowl.name} {(100-winBar.prob).toFixed(0)}%</span>
+          </div>
+          <div style={{fontSize:10,color:"rgba(180,200,255,0.45)",marginTop:4,opacity:.6}}>Estimated win probability.</div>
+        </div>}
+      </Card>
+      <div>
+        <div style={{fontSize:11.5,color:"rgba(180,200,255,0.45)",marginBottom:6}}>THIS OVER</div>
+        <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+          {inn.overBalls.length===0&&<span style={{color:"rgba(180,200,255,0.45)",fontSize:13}}>New over</span>}
+          {inn.overBalls.map((b,i)=><BallDot key={i} ball={b}/>)}
+        </div>
+      </div>
+      <div style={{display:"flex",gap:10}}>
+        <Card style={{flex:1,padding:12}}>
+          <div style={{fontSize:11,color:"rgba(14,165,233,0.5)",marginBottom:8,letterSpacing:1.2}}>BATTING</div>
+          {strPl&&<PLine player={strPl} stats={strSt} active/>}
+          {nsPl?<PLine player={nsPl} stats={nsSt}/>:<div style={{fontSize:12,color:"rgba(180,200,255,0.45)",marginTop:8}}>Batting alone</div>}
+        </Card>
+        <Card style={{flex:1,padding:12}}>
+          <div style={{fontSize:11,color:"rgba(14,165,233,0.5)",marginBottom:8,letterSpacing:1.2}}>BOWLING</div>
+          {bwlPl?<div style={{display:"flex",alignItems:"center",gap:8}}><Avatar player={bwlPl} size={28}/><div><div style={{fontSize:13.5,fontWeight:600}}>{bwlPl.name}</div><div style={{fontSize:11.5,color:"rgba(180,200,255,0.45)",fontFamily:NF}}>{oversStr(bwlSt.balls)}-{bwlSt.runs}-{bwlSt.wickets}</div></div></div>:<div style={{fontSize:12,color:"rgba(180,200,255,0.45)"}}>—</div>}
+        </Card>
+      </div>
+      <div>
+        <div style={{fontSize:11.5,color:"rgba(180,200,255,0.45)",marginBottom:6}}>RUNS</div>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(6,1fr)",gap:7}}>
+          {[0,1,2,3,4,6].map(r=><button key={r} onClick={()=>onEvent({kind:"RUN",runs:r})} style={{padding:"16px 0",borderRadius:14,border:`1px solid ${r===6?"rgba(220,38,38,0.5)":r===4?"rgba(14,165,233,0.5)":"rgba(255,255,255,0.08)"}`,background:r===6?"rgba(220,38,38,0.14)":r===4?"rgba(14,165,233,0.14)":"rgba(255,255,255,0.05)",color:r===6?"#FCA5A5":r===4?"#7DD3FC":C.text,fontFamily:NF,fontSize:18,fontWeight:700,cursor:"pointer",boxShadow:r===6?"0 0 12px rgba(220,38,38,0.2) inset":r===4?"0 0 12px rgba(14,165,233,0.2) inset":"none",backdropFilter:"blur(8px)"}}>{r}</button>)}
+        </div>
+      </div>
+      <div>
+        <div style={{fontSize:11.5,color:"rgba(180,200,255,0.45)",marginBottom:6}}>EXTRAS</div>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:7}}>
+          <button onClick={()=>onEvent({kind:"EXTRA",type:"WD",runs:0})} style={xStyle()}>WD</button>
+          <button onClick={()=>onEvent({kind:"EXTRA",type:"NB",runs:0})} style={xStyle()}>NB</button>
+          <button onClick={()=>setXPick(xPick==="LB"?null:"LB")} style={xStyle(xPick==="LB")}>LB</button>
+          <button onClick={()=>setXPick(xPick==="BYE"?null:"BYE")} style={xStyle(xPick==="BYE")}>BYE</button>
+        </div>
+        {xPick&&<div style={{display:"flex",gap:6,marginTop:8}}>
+          {[1,2,3,4].map(n=><button key={n} onClick={()=>{onEvent({kind:"EXTRA",type:xPick,runs:n});setXPick(null)}} style={{flex:1,padding:"9px 0",borderRadius:10,border:`1px solid ${C.accent}`,background:C.accentSoft,color:C.accentText,fontFamily:NF,fontWeight:700,cursor:"pointer"}}>{n}</button>)}
+        </div>}
+      </div>
+      <button onClick={()=>setModal({type:"wicket"})} style={{width:"100%",padding:"15px 0",borderRadius:14,border:"1px solid rgba(220,38,38,0.45)",background:"linear-gradient(135deg,rgba(220,38,38,0.18) 0%,rgba(153,27,27,0.08) 100%)",color:"#FCA5A5",fontWeight:700,fontSize:15,letterSpacing:1,cursor:"pointer",boxShadow:"0 0 24px rgba(220,38,38,0.15) inset, 0 4px 20px rgba(220,38,38,0.12)"}}>WICKET</button>
+      <button onClick={()=>setConfExit("declare")} style={{background:"none",border:"none",color:"rgba(180,200,255,0.45)",fontSize:12.5,textAlign:"center",padding:"4px 0",cursor:"pointer"}}>End this innings now</button>
+    </div>
+    {confExit&&<Modal title={confExit==="declare"?"End innings now?":"Leave match?"} onClose={()=>setConfExit(false)}>
+      <div style={{color:"rgba(180,200,255,0.45)",fontSize:14,marginBottom:16}}>{confExit==="declare"?"This closes the current innings immediately.":"Unsaved scoring progress will be lost."}</div>
+      <div style={{display:"flex",gap:10}}>
+        <Btn variant="ghost" onClick={()=>setConfExit(false)} style={{flex:1}}>Cancel</Btn>
+        <Btn variant="danger" style={{flex:1}} onClick={()=>{confExit==="declare"?onDeclare():onExit();setConfExit(false)}}>{confExit==="declare"?"End innings":"Leave"}</Btn>
+      </div>
+    </Modal>}
+    {modal?.type==="wicket"&&<WicketModal inn={inn} strPl={strPl} nsPl={nsPl} onClose={()=>setModal(null)} onConfirm={p=>{onEvent({kind:"WICKET",...p});setModal(null)}}/>}
+    {modal?.type==="batter"&&<PickModal title={inn.striker==null&&inn.nonStriker==null?"Select opening batter":"Select next batter"} players={eligible(inn,bat.players)} onPick={onBatter}/>}
+    {modal?.type==="bowler"&&<PickModal title="Who's bowling this over?" players={bowl.players} onPick={onBowler} prevId={inn.bowler}/>}
+  </div>
+}
+
+function PLine({player,stats,active}){
+  if(!player)return null;
+  return<div style={{display:"flex",alignItems:"center",gap:8,marginBottom:8}}>
+    <Avatar player={player} size={28}/>
+    <div style={{flex:1,fontSize:13.5,fontWeight:active?700:500,color:active?C.text:C.textMuted}}>{player.name}{active&&<span style={{color:C.accent}}> ●</span>}</div>
+    <div style={{fontFamily:NF,fontSize:13,color:"rgba(180,200,255,0.45)"}}>{stats?`${stats.runs} (${stats.balls})`:"0 (0)"}</div>
+  </div>
+}
+
+function WicketModal({inn,strPl,nsPl,onClose,onConfirm}){
+  const [runs,setRuns]=useState(0);
+  const [slot,setSlot]=useState("striker");
+  const [how,setHow]=useState("Bowled");
+  const [caughtBy,setCaughtBy]=useState("bowler");
+  const [caughtName,setCaughtName]=useState("");
+  const isNS=slot==="nonStriker";
+  // Non-striker can ONLY be run out — no other dismissal valid
+  const ways=isNS?["Run out"]:["Bowled","Caught","LBW","Run out","Stumped","Hit Wicket","Other"];
+  function pickSlot(s){setSlot(s);if(s==="nonStriker"){setHow("Run out")}else{setHow("Bowled")}}
+  function buildHowOut(){
+    if(how==="Caught"){
+      return caughtBy==="bowler"?"Caught & Bowled":`c ${caughtName.trim()||"fielder"} b (bowler)`;
+    }
+    return how;
+  }
+  const lbl={padding:"8px 12px",borderRadius:10,fontSize:12.5,cursor:"pointer"};
+  const sel=(active)=>({...lbl,border:`1px solid ${active?C.accent:C.line}`,background:active?C.accentSoft:"rgba(255,255,255,0.05)",color:active?C.accentText:C.text});
+  return<Modal title="Wicket" onClose={onClose}>
+    <div style={{display:"flex",flexDirection:"column",gap:16}}>
+      {nsPl&&<div>
+        <div style={{fontSize:11,color:"rgba(14,165,233,0.5)",letterSpacing:1.2,marginBottom:6}}>WHO'S OUT</div>
+        <div style={{display:"flex",gap:8}}>
+          {[["striker",strPl?.name,"Striker"],["nonStriker",nsPl?.name,"Non-striker"]].map(([s,nm,lbl])=>
+            <button key={s} onClick={()=>pickSlot(s)} style={{flex:1,padding:"10px 6px",borderRadius:12,border:`1px solid ${slot===s?C.accent:C.line}`,background:slot===s?C.accentSoft:"rgba(255,255,255,0.05)",cursor:"pointer"}}>
+              <div style={{fontSize:12,color:slot===s?C.accentText:C.text,fontWeight:700}}>{nm}</div>
+              <div style={{fontSize:10,color:slot===s?"rgba(14,165,233,0.6)":"rgba(180,200,255,0.35)",marginTop:2}}>{lbl}</div>
+            </button>
+          )}
+        </div>
+        {isNS&&<div style={{marginTop:8,padding:"8px 12px",background:"rgba(220,38,38,0.08)",border:"1px solid rgba(220,38,38,0.2)",borderRadius:10,fontSize:12,color:"#FCA5A5"}}>
+          ⚠ Non-striker can only be dismissed by Run out
+        </div>}
+      </div>}
+      <div>
+        <div style={{fontSize:11,color:"rgba(14,165,233,0.5)",letterSpacing:1.2,marginBottom:6}}>RUNS BEFORE DISMISSAL</div>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:6}}>
+          {[0,1,2,3,4].map(n=><button key={n} onClick={()=>setRuns(n)} style={{padding:"10px 0",borderRadius:10,border:`1px solid ${runs===n?C.accent:C.line}`,background:runs===n?C.accentSoft:"rgba(255,255,255,0.05)",color:runs===n?C.accentText:C.text,fontFamily:NF,fontWeight:700,cursor:"pointer"}}>{n}</button>)}
+        </div>
+      </div>
+      <div>
+        <div style={{fontSize:11,color:"rgba(14,165,233,0.5)",letterSpacing:1.2,marginBottom:6}}>HOW OUT</div>
+        <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
+          {ways.map(w=><button key={w} onClick={()=>setHow(w)} style={sel(how===w)}>{w}</button>)}
+        </div>
+      </div>
+      {how==="Caught"&&!isNS&&<div>
+        <div style={{fontSize:11,color:"rgba(14,165,233,0.5)",letterSpacing:1.2,marginBottom:6}}>CAUGHT BY</div>
+        <div style={{display:"flex",gap:8,marginBottom:8}}>
+          {[["bowler","Bowler (C&B)"],["fielder","Fielder"]].map(([v,lbl])=>
+            <button key={v} onClick={()=>setCaughtBy(v)} style={{flex:1,padding:"9px 8px",borderRadius:10,border:`1px solid ${caughtBy===v?C.accent:C.line}`,background:caughtBy===v?C.accentSoft:"rgba(255,255,255,0.05)",color:caughtBy===v?C.accentText:C.text,fontSize:13,fontWeight:600,cursor:"pointer"}}>{lbl}</button>
+          )}
+        </div>
+        {caughtBy==="fielder"&&<input
+          value={caughtName} onChange={e=>setCaughtName(e.target.value)}
+          placeholder="Enter fielder's name..."
+          style={{width:"100%",background:"rgba(255,255,255,0.06)",border:`1px solid ${C.line}`,borderRadius:10,padding:"10px 12px",color:C.text,fontSize:14}}
+        />}
+      </div>}
+      <Btn variant="accent" full onClick={()=>onConfirm({runsCompleted:runs,howOut:buildHowOut(),noBallCredit:how==="Run out",dismissedId:slot==="striker"?inn.striker:inn.nonStriker,teamPlayers:null})}>Confirm wicket</Btn>
+    </div>
+  </Modal>
+}
+
+function PickModal({title,players,onPick,prevId}){
+  return<Modal title={title}>
+    <div style={{display:"flex",flexDirection:"column",gap:8}}>
+      {players.length===0&&<div style={{color:"rgba(180,200,255,0.45)",fontSize:13}}>No eligible players.</div>}
+      {players.map(p=><button key={p.id} onClick={()=>onPick(p.id)} style={{display:"flex",alignItems:"center",gap:10,padding:"10px 12px",borderRadius:12,border:`1px solid ${C.line}`,background:"rgba(255,255,255,0.06)",color:C.text,cursor:"pointer",textAlign:"left"}}>
+        <Avatar player={p} size={32}/>
+        <span style={{flex:1,fontSize:14.5,fontWeight:500}}>{p.name}</span>
+        {prevId===p.id&&<span style={{fontSize:10.5,color:"rgba(180,200,255,0.45)"}}>bowled last over</span>}
+      </button>)}
+    </div>
+  </Modal>
+}
+
+/* ── PNG EXPORT ── */
+async function exportSummaryPNG(match,mom){
+  const W=800,H=mom?660:520,P=40;
+  const c=document.createElement("canvas");c.width=W;c.height=H;
+  const g=c.getContext("2d");
+  const grad=g.createLinearGradient(0,0,W,H);
+  grad.addColorStop(0,"#050508");grad.addColorStop(1,"#0a0a18");
+  g.fillStyle=grad;g.fillRect(0,0,W,H);
+  const glo=g.createRadialGradient(W/2,H,0,W/2,H,W*0.7);
+  glo.addColorStop(0,"rgba(14,165,233,0.18)");glo.addColorStop(1,"rgba(14,165,233,0)");
+  g.fillStyle=glo;g.fillRect(0,0,W,H);
+  function rr(x,y,w,h,r){g.beginPath();g.moveTo(x+r,y);g.lineTo(x+w-r,y);g.arcTo(x+w,y,x+w,y+r,r);g.lineTo(x+w,y+h-r);g.arcTo(x+w,y+h,x+w-r,y+h,r);g.lineTo(x+r,y+h);g.arcTo(x,y+h,x,y+h-r,r);g.lineTo(x,y+r);g.arcTo(x,y,x+r,y,r);g.closePath()}
+  g.fillStyle="rgba(255,255,255,0.05)";rr(P,P,W-P*2,80,16);g.fill();
+  g.strokeStyle="rgba(14,165,233,0.3)";g.lineWidth=1;rr(P,P,W-P*2,80,16);g.stroke();
+  g.font="bold 13px sans-serif";g.fillStyle="rgba(14,165,233,0.6)";g.textAlign="center";
+  g.fillText("CRICKET SCORER",W/2,P+22);
+  g.font="bold 28px Georgia";g.fillStyle="#EEF2FF";
+  g.fillText(match.result?.text||"",W/2,P+58);
+  let y=P+100;
+  match.innings.forEach(inn=>{
+    const tm=teamById(match.cfg,inn.batId);
+    g.fillStyle="rgba(255,255,255,0.04)";rr(P,y,W-P*2,70,12);g.fill();
+    g.strokeStyle="rgba(255,255,255,0.07)";rr(P,y,W-P*2,70,12);g.stroke();
+    g.font="bold 15px sans-serif";g.fillStyle="#EEF2FF";g.textAlign="left";
+    g.fillText(tm.name+" — Innings "+inn.num,P+18,y+26);
+    g.font="bold 22px monospace";g.fillStyle="#7DD3FC";g.textAlign="right";
+    g.fillText(inn.runs+"/"+inn.wickets,W-P-18,y+26);
+    g.font="12px sans-serif";g.fillStyle="rgba(180,200,255,0.5)";g.textAlign="left";
+    g.fillText(oversStr(inn.balls)+" overs",P+18,y+50);
+    y+=82;
+  });
+  if(mom){y+=8;
+    g.fillStyle="rgba(245,158,11,0.1)";rr(P,y,W-P*2,100,12);g.fill();
+    g.strokeStyle="rgba(245,158,11,0.35)";rr(P,y,W-P*2,100,12);g.stroke();
+    g.font="bold 11px sans-serif";g.fillStyle="rgba(245,158,11,0.7)";g.textAlign="left";
+    g.fillText("MAN OF THE MATCH",P+18,y+24);
+    g.font="bold 22px Georgia";g.fillStyle="#FDE68A";g.fillText(mom.player.name,P+18,y+52);
+    g.font="12px sans-serif";g.fillStyle="rgba(245,158,11,0.6)";g.fillText(mom.teamName,P+18,y+72);
+    g.fillStyle="rgba(220,220,255,0.7)";g.fillText(mom.reason,P+18,y+90);
+  }
+  g.font="11px sans-serif";g.fillStyle="rgba(255,255,255,0.2)";g.textAlign="center";
+  g.fillText("Cricket Scorer",W/2,H-16);
+  c.toBlob(async blob=>{
+    try{const dl=await claude.use("downloads");if(dl){await dl.save({filename:"cricket-summary.png",data:blob});return}}catch(e){}
+    const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="cricket-summary.png";a.click();
+  },"image/png");
+}
+
+/* ── MAN OF THE MATCH ── */
+function calcMOM(match){
+  const ps={};// playerId -> {name,teamId,bat:{runs,balls,pressureMul},bowl:{balls,runs,wickets}}
+  const winTeamId=match.result?.text?.includes("won")?
+    (match.innings[match.innings.length-1].runs>=(match.innings[match.innings.length-1].target||Infinity)?
+      match.innings[match.innings.length-1].batId:match.innings[match.innings.length-1].bowlId)
+    :null;
+
+  for(const inn of match.innings){
+    const batTeam=teamById(match.cfg,inn.batId);
+    const bowlTeam=teamById(match.cfg,inn.bowlId);
+    // batting
+    for(const [pid,st] of Object.entries(inn.batsmen)){
+      if(!ps[pid]){const pl=batTeam.players.find(p=>p.id===pid);ps[pid]={name:pl?.name||pid,teamId:inn.batId,bat:{runs:0,balls:0,pressureMul:1},bowl:{balls:0,runs:0,wickets:0}}}
+      const orderIdx=inn.battingOrderUsed?.indexOf(pid)??-1;
+      // wickets in hand when this batter arrived
+      const wih=orderIdx<=1?inn.totalBatters-1:inn.totalBatters-1-(orderIdx-1);
+      // pressure multiplier: 1-2 wickets in hand + batting team won = massive bonus
+      let pm=1;
+      if(wih<=1&&inn.batId===winTeamId)pm=3.5;
+      else if(wih<=2&&inn.batId===winTeamId)pm=2.5;
+      else if(wih<=3&&inn.batId===winTeamId)pm=1.6;
+      else if(wih<=2)pm=1.3;
+      ps[pid].bat.runs+=st.runs;ps[pid].bat.balls+=st.balls;
+      ps[pid].bat.pressureMul=Math.max(ps[pid].bat.pressureMul,pm);
+      ps[pid].teamId=inn.batId;
+    }
+    // bowling
+    for(const [pid,st] of Object.entries(inn.bowlers)){
+      if(!ps[pid]){const pl=bowlTeam.players.find(p=>p.id===pid);ps[pid]={name:pl?.name||pid,teamId:inn.bowlId,bat:{runs:0,balls:0,pressureMul:1},bowl:{balls:0,runs:0,wickets:0}}}
+      ps[pid].bowl.balls+=st.balls;ps[pid].bowl.runs+=st.runs;ps[pid].bowl.wickets+=st.wickets;
+    }
+  }
+
+  let bestId=null,bestScore=-1,bestReason="";
+  for(const [pid,p] of Object.entries(ps)){
+    // Batting score: runs × (1 + SR/100) × pressure
+    const sr=p.bat.balls>0?(p.bat.runs/p.bat.balls)*100:0;
+    const batScore=p.bat.runs*(1+sr/100)*p.bat.pressureMul;
+    // Bowling score: economy-weighted wickets + runs saved
+    let bowlScore=0;
+    if(p.bowl.balls>=6){
+      const overs=p.bowl.balls/6;
+      const econ=p.bowl.runs/overs;
+      // Economy factor: <4 = excellent, 4-6 = good, 6-9 = average, 9-12 = poor, >12 = bad
+      const ef=econ<4?2.8:econ<6?2.0:econ<9?1.3:econ<12?0.9:0.5;
+      const runsaved=Math.max(0,(overs*8)-p.bowl.runs);// vs par economy of 8
+      bowlScore=(p.bowl.wickets*20+runsaved*1.5)*ef;
+    }
+    const total=batScore+bowlScore;
+    if(total>bestScore){
+      bestScore=total;bestId=pid;
+      // Build reason string
+      const overs=p.bowl.balls>=6?oversStr(p.bowl.balls):null;
+      const econ=p.bowl.balls>=6?(p.bowl.runs/(p.bowl.balls/6)).toFixed(1):null;
+      const pressStr=p.bat.pressureMul>=3?"under extreme pressure, match-winning innings":p.bat.pressureMul>=2?"under pressure":"";
+      if(batScore>=bowlScore){
+        bestReason=`${p.bat.runs} runs (${p.bat.balls} balls, SR ${sr.toFixed(0)})${pressStr?" — "+pressStr:""}`;
+      } else {
+        bestReason=`${p.bowl.wickets}/${p.bowl.runs} in ${overs} overs · Econ ${econ}`;
+      }
+    }
+  }
+  if(!bestId)return null;
+  const p=ps[bestId];
+  for(const team of [match.cfg.teamA,match.cfg.teamB]){
+    const player=team.players.find(pl=>pl.id===bestId);
+    if(player)return{player,teamName:team.name,reason:bestReason,score:bestScore};
+  }
+  return null;
+}
+
+/* ── SUMMARY ── */
+function SummaryScreen({match,onHome,onRecord,recorded}){
+  const mom=calcMOM(match);
+  return<div style={{paddingBottom:110}}>
+    <Hdr title="Match summary"/>
+    <div style={{padding:"0 18px",display:"flex",flexDirection:"column",gap:14}}>
+      <Card style={{textAlign:"center",background:"linear-gradient(135deg,rgba(14,165,233,0.1),rgba(109,40,217,0.07))",border:"1px solid rgba(14,165,233,0.2)"}}>
+        <div style={{fontSize:11,color:"rgba(14,165,233,0.5)",letterSpacing:1.5,marginBottom:6}}>RESULT</div>
+        <div style={{fontFamily:DF,fontStyle:"italic",fontSize:22,fontWeight:600}}>{match.result?.text}</div>
+      </Card>
+      {match.innings.map((inn,i)=>{
+        const tm=teamById(match.cfg,inn.batId);
+        const topBat=Object.entries(inn.batsmen).sort((a,b)=>b[1].runs-a[1].runs)[0];
+        const topBowl=Object.entries(inn.bowlers).filter(([,s])=>s.balls>=6).sort((a,b)=>b[1].wickets-a[1].wickets||a[1].runs-b[1].runs)[0];
+        const topBatPl=topBat?tm.players.find(p=>p.id===topBat[0]):null;
+        const bowlTm=teamById(match.cfg,inn.bowlId);
+        const topBowlPl=topBowl?bowlTm.players.find(p=>p.id===topBowl[0]):null;
+        return<Card key={i}>
+          <div style={{display:"flex",justifyContent:"space-between",marginBottom:6}}>
+            <span style={{fontWeight:700,fontSize:14}}>{tm.name} — Inns {inn.num}</span>
+            <span style={{fontFamily:NF,fontSize:14,color:C.accentText}}>{inn.runs}/{inn.wickets}</span>
+          </div>
+          <div style={{fontSize:12,color:"rgba(180,200,255,0.45)",marginBottom:8}}>{oversStr(inn.balls)} overs</div>
+          {topBatPl&&<div style={{fontSize:12,color:"rgba(180,200,255,0.5)"}}>
+            🏏 {topBatPl.name} — {topBat[1].runs} ({topBat[1].balls}) · SR {topBat[1].balls>0?((topBat[1].runs/topBat[1].balls)*100).toFixed(0):0}
+          </div>}
+          {topBowlPl&&<div style={{fontSize:12,color:"rgba(180,200,255,0.5)",marginTop:3}}>
+            ⚡ {topBowlPl.name} — {topBowl[1].wickets}/{topBowl[1].runs} ({oversStr(topBowl[1].balls)} ov · Econ {topBowl[1].balls>=6?(topBowl[1].runs/(topBowl[1].balls/6)).toFixed(1):"—"})
+          </div>}
+        </Card>
+      })}
+      {mom&&<Card style={{background:"linear-gradient(135deg,rgba(245,158,11,0.12),rgba(220,38,38,0.06))",border:"1px solid rgba(245,158,11,0.3)"}}>
+        <div style={{fontSize:11,color:"rgba(245,158,11,0.7)",letterSpacing:1.5,marginBottom:10}}>🏆 MAN OF THE MATCH</div>
+        <div style={{display:"flex",alignItems:"center",gap:12}}>
+          <Avatar player={mom.player} size={52}/>
+          <div style={{flex:1}}>
+            <div style={{fontFamily:DF,fontSize:20,fontWeight:700,color:"#FDE68A"}}>{mom.player.name}</div>
+            <div style={{fontSize:12,color:"rgba(245,158,11,0.6)",marginTop:1}}>{mom.teamName}</div>
+            <div style={{fontSize:12.5,color:"rgba(220,220,255,0.7)",marginTop:6,lineHeight:1.4}}>{mom.reason}</div>
+          </div>
+        </div>
+      </Card>}
+      <Btn variant="accent" onClick={onRecord} disabled={recorded} full>{recorded?"Added to points table":"Add to points table"}</Btn>
+      <button onClick={()=>exportSummaryPNG(match,mom)} style={{width:"100%",padding:"14px",borderRadius:14,border:"1px solid rgba(14,165,233,0.35)",background:"rgba(14,165,233,0.08)",color:C.accentText,fontWeight:600,fontSize:14,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:8}}>
+        <span style={{fontSize:18}}>📸</span> Share Summary as Image
+      </button>
+      <Btn variant="ghost" onClick={onHome} full>Back home</Btn>
+    </div>
+  </div>
+}
+
+/* ── POINTS TABLE ── */
+function PointsScreen({table,setTable}){
+  function up(id,patch){setTable(table.map(r=>r.id===id?{...r,...patch}:r))}
+  return<div style={{paddingBottom:110}}>
+    <Hdr title="Points table"/>
+    <div style={{padding:"0 18px",display:"flex",flexDirection:"column",gap:10}}>
+      {table.length===0&&<div style={{color:"rgba(180,200,255,0.45)",fontSize:14,padding:"16px 4px"}}>No entries yet. Finish a match and add its result here.</div>}
+      {table.map(r=><Card key={r.id}>
+        <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:10}}>
+          <input value={r.teamName} onChange={e=>up(r.id,{teamName:e.target.value})} style={{flex:1,background:"transparent",border:"none",color:C.text,fontWeight:700,fontSize:15}}/>
+          <button onClick={()=>setTable(table.filter(x=>x.id!==r.id))} style={{background:"none",border:"none",color:"rgba(180,200,255,0.45)",cursor:"pointer"}}><Xmark size={16}/></button>
+        </div>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:6}}>
+          {[["played","P"],["won","W"],["lost","L"],["points","Pts"]].map(([k,lbl])=><div key={k}>
+            <div style={{fontSize:10.5,color:"rgba(180,200,255,0.45)",textAlign:"center",marginBottom:3}}>{lbl}</div>
+            <input type="number" value={r[k]} onChange={e=>up(r.id,{[k]:parseInt(e.target.value)||0})} style={{width:"100%",textAlign:"center",background:"rgba(255,255,255,0.06)",border:`1px solid ${C.line}`,borderRadius:8,padding:"6px 0",color:C.text,fontFamily:NF,fontSize:13}}/>
+          </div>)}
+        </div>
+      </Card>)}
+      <Btn variant="accent" onClick={()=>setTable([...table,{id:uid("r"),teamName:"New team",played:0,won:0,lost:0,points:0}])} full><Plus size={16}/>Add team row</Btn>
+    </div>
+  </div>
+}
+
+/* ── LOGIN ── */
+function LoginScreen({onLogin}){
+  const [name,setName]=useState("");
+  return<div style={{minHeight:"100vh",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:32,gap:24}}>
+    <div style={{textAlign:"center"}}>
+      <div style={{fontSize:11,color:"rgba(14,165,233,0.6)",letterSpacing:2.5,marginBottom:8}}>CRICKET SCORER</div>
+      <div style={{fontFamily:DF,fontSize:34,fontWeight:600}}>Welcome</div>
+      <div style={{fontSize:14,color:"rgba(180,200,255,0.45)",marginTop:6}}>Enter your name to continue</div>
+    </div>
+    <div style={{width:"100%",maxWidth:360,display:"flex",flexDirection:"column",gap:12}}>
+      <input value={name} onChange={e=>setName(e.target.value)} onKeyDown={e=>e.key==="Enter"&&name.trim()&&onLogin(name.trim())}
+        placeholder="Your name..."
+        style={{width:"100%",background:"rgba(255,255,255,0.06)",border:"1px solid rgba(14,165,233,0.3)",borderRadius:14,padding:"14px 16px",color:"#EEF2FF",fontSize:16,backdropFilter:"blur(12px)"}}/>
+      <Btn variant="accent" disabled={!name.trim()} onClick={()=>onLogin(name.trim())} full>Continue</Btn>
+    </div>
+  </div>
+}
+
+function NetworkScreen({userId,userName,currentNet,onJoin,onCreate,onLeave,onBack}){
+  const [code,setCode]=useState("");
+  const [netName,setNetName]=useState("");
+  const [tab,setTab]=useState(currentNet?"info":"join");
+  const [loading,setLoading]=useState(false);
+  const [err,setErr]=useState("");
+  const [copyLabel,setCopyLabel]=useState("Copy code");
+  function genCode(){return Math.random().toString(36).slice(2,8).toUpperCase()}
+  async function handleCreate(){if(!netName.trim())return;setLoading(true);setErr("");try{await onCreate(genCode(),netName.trim())}catch(e){setErr("Failed. Try again.")}setLoading(false)}
+  async function handleJoin(){if(code.trim().length<4)return;setLoading(true);setErr("");try{const ok=await onJoin(code.trim().toUpperCase());if(!ok)setErr("Network not found. Check the code.")}catch(e){setErr("Failed. Try again.")}setLoading(false)}
+  function copyCode(){navigator.clipboard?.writeText(currentNet?.code||"");setCopyLabel("Copied!");setTimeout(()=>setCopyLabel("Copy code"),2000)}
+  const TB=({v,lbl})=><button onClick={()=>setTab(v)} style={{flex:1,padding:"9px",borderRadius:10,border:"none",background:tab===v?"rgba(14,165,233,0.15)":"transparent",color:tab===v?C.accentText:"rgba(180,200,255,0.45)",fontWeight:600,fontSize:13,cursor:"pointer"}}>{lbl}</button>;
+  return<div style={{paddingBottom:110}}>
+    <Hdr title="Network" onBack={onBack}/>
+    <div style={{padding:"0 18px",display:"flex",flexDirection:"column",gap:16}}>
+      {currentNet&&<Card style={{background:"linear-gradient(135deg,rgba(14,165,233,0.1),rgba(109,40,217,0.07))",border:"1px solid rgba(14,165,233,0.25)"}}>
+        <div style={{fontSize:10,color:"rgba(14,165,233,0.5)",letterSpacing:1.5,marginBottom:8}}>ACTIVE NETWORK</div>
+        <div style={{fontWeight:700,fontSize:18,marginBottom:8}}>{currentNet.name}</div>
+        <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:12}}>
+          <span style={{fontFamily:NF,fontSize:24,fontWeight:700,color:C.accentText,letterSpacing:4}}>{currentNet.code}</span>
+          <button onClick={copyCode} style={{background:"rgba(14,165,233,0.12)",border:"1px solid rgba(14,165,233,0.3)",borderRadius:8,padding:"5px 12px",color:C.accentText,cursor:"pointer",fontSize:12}}>{copyLabel}</button>
+        </div>
+        <div style={{fontSize:12.5,color:"rgba(180,200,255,0.45)",marginBottom:14}}>Share this 6-character code with friends. Anyone who joins can see and edit your teams, matches, and points table.</div>
+        <Btn variant="danger" onClick={onLeave} full>Leave network</Btn>
+      </Card>}
+      {!currentNet&&<>
+        <div style={{display:"flex",background:"rgba(255,255,255,0.04)",borderRadius:12,padding:4,gap:2}}><TB v="join" lbl="Join a network"/><TB v="create" lbl="Create one"/></div>
+        {tab==="join"&&<Card>
+          <div style={{fontSize:11,color:"rgba(14,165,233,0.5)",letterSpacing:1.2,marginBottom:8}}>NETWORK CODE</div>
+          <input value={code} onChange={e=>setCode(e.target.value.toUpperCase())} placeholder="ABC123" maxLength={8}
+            style={{width:"100%",background:"rgba(255,255,255,0.06)",border:"1px solid rgba(14,165,233,0.3)",borderRadius:12,padding:"12px 14px",color:C.text,fontSize:20,fontFamily:NF,letterSpacing:4,textAlign:"center",marginBottom:12}}/>
+          {err&&<div style={{color:"#FCA5A5",fontSize:12.5,marginBottom:10}}>{err}</div>}
+          <Btn variant="accent" disabled={code.trim().length<4||loading} onClick={handleJoin} full>{loading?"Joining…":"Join network"}</Btn>
+        </Card>}
+        {tab==="create"&&<Card>
+          <div style={{fontSize:11,color:"rgba(14,165,233,0.5)",letterSpacing:1.2,marginBottom:8}}>NETWORK NAME</div>
+          <input value={netName} onChange={e=>setNetName(e.target.value)} placeholder="e.g. Sunday Legends"
+            style={{width:"100%",background:"rgba(255,255,255,0.06)",border:"1px solid rgba(14,165,233,0.3)",borderRadius:12,padding:"12px 14px",color:C.text,fontSize:15,marginBottom:12}}/>
+          {err&&<div style={{color:"#FCA5A5",fontSize:12.5,marginBottom:10}}>{err}</div>}
+          <Btn variant="accent" disabled={!netName.trim()||loading} onClick={handleCreate} full>{loading?"Creating…":"Create network"}</Btn>
+        </Card>}
+      </>}
+      <Card>
+        <div style={{fontSize:11,color:"rgba(14,165,233,0.5)",letterSpacing:1.2,marginBottom:8}}>WHAT A NETWORK GIVES YOU</div>
+        {["Teams synced across all phones","Last 20 matches visible to everyone","Same points table for the whole group","Anyone can make changes — no admin needed"].map((t,i)=>
+          <div key={i} style={{display:"flex",gap:8,marginBottom:6,fontSize:13,color:"rgba(180,200,255,0.6)"}}><span style={{color:C.accentText}}>✓</span>{t}</div>)}
+      </Card>
+    </div>
+  </div>
+}
+
+function HistoryScreen({matches,onBack}){
+  return<div style={{paddingBottom:110}}>
+    <Hdr title="Match History" onBack={onBack}/>
+    <div style={{padding:"0 18px",display:"flex",flexDirection:"column",gap:10}}>
+      {matches.length===0&&<div style={{color:"rgba(180,200,255,0.45)",fontSize:14,padding:"24px 4px"}}>No past matches yet.</div>}
+      {[...matches].reverse().slice(0,20).map((m,i)=><Card key={i}>
+        <div style={{display:"flex",justifyContent:"space-between",marginBottom:4}}>
+          <span style={{fontWeight:700,fontSize:14}}>{m.cfg?.teamA?.name} vs {m.cfg?.teamB?.name}</span>
+          <span style={{fontFamily:NF,fontSize:12,color:"rgba(180,200,255,0.4)"}}>{m.cfg?.formatLabel||""}</span>
+        </div>
+        <div style={{fontSize:13,color:C.accentText,marginBottom:m.mom?4:0}}>{m.result?.text}</div>
+        {m.mom&&<div style={{fontSize:12,color:"rgba(245,158,11,0.7)"}}>🏆 {m.mom.player?.name} — {m.mom.reason}</div>}
+        {m.playedAt&&<div style={{fontSize:11,color:"rgba(180,200,255,0.3)",marginTop:4}}>{new Date(m.playedAt).toLocaleDateString()}</div>}
+      </Card>)}
+    </div>
+  </div>
+}
+
+/* ── ROOT APP ── */
+function App(){
+  const [screen,setScreen]=useState("loading");
+  const [navOpen,setNavOpen]=useState(false);
+  const [teams,setTeams]=useState([]);
+  const [ptTable,setPtTable]=useState([]);
+  const [editTeam,setEditTeam]=useState(null);
+  const [match,setMatch]=useState(null);
+  const [hist,setHist]=useState([]);
+  const [modal,setModal]=useState(null);
+  const [recorded,setRecorded]=useState(false);
+  const [userName,setUserName]=useState("");
+  const [userId,setUserId]=useState(null);
+  const [network,setNetwork]=useState(null);
+  const [dbRef,setDbRef]=useState(null);
+  const [pastMatches,setPastMatches]=useState([]);
+  const [tieMatch,setTieMatch]=useState(null);
+
+  useEffect(()=>{
+    try{const t=localStorage.getItem("cricket-teams");if(t)setTeams(JSON.parse(t))}catch(e){}
+    try{const p=localStorage.getItem("cricket-points");if(p)setPtTable(JSON.parse(p))}catch(e){}
+    try{const pm=localStorage.getItem("cricket-past");if(pm)setPastMatches(JSON.parse(pm))}catch(e){}
+    const sn=localStorage.getItem("cricket-username")||"";
+    if(sn){setUserName(sn);setScreen("home")}else{setScreen("login")}
+    (async()=>{
+      try{
+        const db=await claude.use("db");const user=await claude.use("user");
+        if(db&&user){setDbRef(db);const uid=await user.id();setUserId(uid);
+          try{const prof=await db.collection("data/users/"+uid).doc("prof").get();
+            if(prof?.netCode){const ni=await db.doc("net_"+prof.netCode+"/info").get();
+              if(ni){setNetwork({code:prof.netCode,name:ni.name||"Network"});subNet(db,prof.netCode);}}}catch(e){}
+        }
+      }catch(e){}
+    })();
+  },[]);
+
+  function subNet(db,code){
+    db.doc("net_"+code+"/data").onSnapshot(snap=>{
+      if(!snap)return;
+      if(snap.teams)setTeams(snap.teams);
+      if(snap.points)setPtTable(snap.points);
+      if(snap.matches)setPastMatches(snap.matches);
+    });
+  }
+  async function handleLogin(name){
+    setUserName(name);localStorage.setItem("cricket-username",name);setScreen("home");
+    if(userId&&dbRef)try{await dbRef.collection("data/users/"+userId).doc("prof").update({name})}catch(e){}
+  }
+  async function saveTeams(next){setTeams(next);localStorage.setItem("cricket-teams",JSON.stringify(next));
+    if(dbRef&&network)try{await dbRef.doc("net_"+network.code+"/data").update({teams:next})}catch(e){}}
+  async function savePts(next){setPtTable(next);localStorage.setItem("cricket-points",JSON.stringify(next));
+    if(dbRef&&network)try{await dbRef.doc("net_"+network.code+"/data").update({points:next})}catch(e){}}
+  async function savePast(next){const tr=next.slice(-20);setPastMatches(tr);localStorage.setItem("cricket-past",JSON.stringify(tr));
+    if(dbRef&&network)try{await dbRef.doc("net_"+network.code+"/data").update({matches:tr})}catch(e){}}
+  async function handleCreateNet(code,name){if(!dbRef)return;
+    await dbRef.doc("net_"+code+"/info").set({name,createdAt:Date.now()});
+    await dbRef.doc("net_"+code+"/data").set({teams,points:ptTable,matches:pastMatches});
+    if(userId)await dbRef.collection("data/users/"+userId).doc("prof").set({name:userName,netCode:code});
+    setNetwork({code,name});subNet(dbRef,code);}
+  async function handleJoinNet(code){if(!dbRef)return false;
+    try{const info=await dbRef.doc("net_"+code+"/info").get();if(!info)return false;
+      setNetwork({code,name:info.name||"Network"});
+      if(userId)await dbRef.collection("data/users/"+userId).doc("prof").set({name:userName,netCode:code});
+      subNet(dbRef,code);return true;}catch(e){return false;}}
+  async function handleLeaveNet(){
+    if(userId&&dbRef)try{await dbRef.collection("data/users/"+userId).doc("prof").update({netCode:null})}catch(e){}
+    setNetwork(null);}
+
+  function saveTeam(team){
+    const next=teams.some(t=>t.id===team.id)?teams.map(t=>t.id===team.id?team:t):[...teams,team];
+    saveTeams(next);setEditTeam(null);setScreen("teams");
+  }
+
+  function go(s){setScreen(s);setNavOpen(false)}
+
+  function startNew(cfg){
+    const m=startMatch(cfg);setMatch(m);setHist([]);setRecorded(false);setTieMatch(null);
+    setModal(getPending(m));setScreen("match");
+  }
+
+  function doEvent(ev){
+    const m2=clone(match);
+    setHist(h=>[...h,match].slice(-30));
+    const inn=curInn(m2);const{bat}=teamsFor(m2,inn);
+    bowl(inn,{...ev,teamPlayers:bat.players},inn.bowler);
+    autoFill(m2);checkEnd(m2);
+    setMatch(m2);
+    if(m2.status==="done"){setModal(null);const mm=calcMOM(m2);savePast([...pastMatches,{...m2,mom:mm?{player:mm.player,teamName:mm.teamName,reason:mm.reason}:null,playedAt:Date.now()}]);setScreen("summary")}
+    else if(m2.status==="tied"){setModal(null);setTieMatch(m2);setScreen("tie")}
+    else setModal(getPending(m2));
+  }
+
+  function doBatter(id){
+    const m2=clone(match);setHist(h=>[...h,match].slice(-30));
+    setBatter(curInn(m2),id);autoFill(m2);setMatch(m2);setModal(getPending(m2));
+  }
+
+  function doBowler(id){
+    const m2=clone(match);setHist(h=>[...h,match].slice(-30));
+    setBowler(curInn(m2),id);setMatch(m2);setModal(getPending(m2));
+  }
+
+  function doDeclare(){
+    const m2=clone(match);setHist(h=>[...h,match].slice(-30));
+    curInn(m2).completed=true;checkEnd(m2);setMatch(m2);
+    if(m2.status==="done"){setModal(null);const mm=calcMOM(m2);savePast([...pastMatches,{...m2,mom:mm?{player:mm.player,teamName:mm.teamName,reason:mm.reason}:null,playedAt:Date.now()}]);setScreen("summary")}
+    else if(m2.status==="tied"){setModal(null);setTieMatch(m2);setScreen("tie")}
+    else setModal(getPending(m2));
+  }
+
+  function doUndo(){
+    if(!hist.length)return;
+    const prev=hist[hist.length-1];setHist(h=>h.slice(0,-1));
+    setMatch(prev);setModal(getPending(prev));
+  }
+
+  function recordResult(){
+    if(!match||recorded)return;
+    const{aT,bT}=match.result||{aT:0,bT:0};const aWon=aT>bT,tie=aT===bT;
+    let next=[...ptTable];
+    [match.cfg.teamA,match.cfg.teamB].forEach((tm,i)=>{
+      const won=tie?false:i===0?aWon:!aWon;
+      let row=next.find(r=>r.teamName===tm.name);
+      if(!row){row={id:uid("r"),teamName:tm.name,played:0,won:0,lost:0,points:0};next.push(row)}
+      row.played++;if(won){row.won++;row.points+=2}else if(tie){row.points+=1}else row.lost++;
+    });
+    savePts(next);setRecorded(true);
+  }
+
+  const GlobeIcon=({size=24})=><Ico size={size}><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></Ico>;
+  const ClockIcon=({size=24})=><Ico size={size}><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></Ico>;
+  const navItems=[["home","Home",HomeIcon],["newMatch","New match",Swords],["teams","Teams",Users],["points","Points",Trophy],["history","History",ClockIcon],["network",network?"Net ✓":"Network",GlobeIcon]];
+  return<div style={{minHeight:"100vh",background:C.bg,color:C.text,fontFamily:"Inter,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif",maxWidth:480,margin:"0 auto",position:"relative"}}>
+    {screen==="loading"&&<div style={{height:"100vh",display:"flex",alignItems:"center",justifyContent:"center"}}><div style={{color:"rgba(14,165,233,0.5)",fontSize:14}}>Loading…</div></div>}
+    {screen==="login"&&<LoginScreen onLogin={handleLogin}/>}
+    {screen==="home"&&<HomeScreen onNew={()=>go("newMatch")} onTeams={()=>go("teams")} onPoints={()=>go("points")} hasLive={!!match&&match.status==="playing"} onResume={()=>setScreen("match")} hasHistory={pastMatches.length>0} onHistory={()=>go("history")}/>}
+    {screen==="teams"&&!editTeam&&<TeamsScreen teams={teams} onNew={()=>setEditTeam({id:uid("team"),name:"",players:[{id:uid("p"),name:"",photo:null}]})} onEdit={t=>setEditTeam(t)} onDel={id=>saveTeams(teams.filter(t=>t.id!==id))}/>}
+    {screen==="teams"&&editTeam&&<TeamEditor initial={editTeam.name!==""||editTeam.players?.length>0?editTeam:null} onSave={saveTeam} onCancel={()=>setEditTeam(null)}/>}
+    {screen==="newMatch"&&<NewMatchScreen teams={teams} onStart={startNew} onGoTeams={()=>go("teams")}/>}
+    {screen==="match"&&match&&<MatchScreen match={match} onEvent={doEvent} onBatter={doBatter} onBowler={doBowler} onUndo={doUndo} canUndo={hist.length>0} onDeclare={doDeclare} onExit={()=>{setScreen("home")}} modal={modal} setModal={setModal}/>}
+    {screen==="tie"&&tieMatch&&<div style={{paddingBottom:110}}>
+      <Hdr title="Match Tied" onBack={()=>{setMatch({...tieMatch,status:"done"});setScreen("summary")}}/>
+      <div style={{padding:"0 18px",display:"flex",flexDirection:"column",gap:12}}>
+        <Card style={{textAlign:"center",padding:24,background:"linear-gradient(135deg,rgba(14,165,233,0.08),rgba(109,40,217,0.06))",border:"1px solid rgba(14,165,233,0.2)"}}>
+          <div style={{fontFamily:DF,fontSize:26,fontWeight:600,marginBottom:6}}>Match Tied 🤝</div>
+          <div style={{fontSize:14,color:"rgba(180,200,255,0.5)"}}>{tieMatch.cfg?.teamA?.name} and {tieMatch.cfg?.teamB?.name} are level</div>
+        </Card>
+        <button onClick={()=>{setMatch({...tieMatch,status:"done"});const mm=calcMOM(tieMatch);savePast([...pastMatches,{...tieMatch,status:"done",mom:mm?{player:mm.player,teamName:mm.teamName,reason:mm.reason}:null,playedAt:Date.now()}]);setScreen("summary")}} style={{padding:"18px",borderRadius:14,border:"1px solid rgba(255,255,255,0.12)",background:"rgba(255,255,255,0.04)",color:C.text,fontSize:14,fontWeight:600,cursor:"pointer",textAlign:"left"}}>
+          <div style={{fontWeight:700,marginBottom:4}}>🤝 Accept the Tie</div>
+          <div style={{fontSize:12,color:"rgba(180,200,255,0.45)"}}>Record as tied and view the summary</div>
+        </button>
+        <button onClick={()=>{const so=startSuperOver(tieMatch,6);setMatch(so);setHist([]);setTieMatch(null);setModal(getPending(so));setScreen("match")}} style={{padding:"18px",borderRadius:14,border:"1px solid rgba(14,165,233,0.4)",background:"rgba(14,165,233,0.08)",color:C.accentText,fontSize:14,fontWeight:600,cursor:"pointer",textAlign:"left"}}>
+          <div style={{fontWeight:700,marginBottom:4}}>⚡ Super Over — 6 balls each</div>
+          <div style={{fontSize:12,color:"rgba(14,165,233,0.5)"}}>One over per team. Highest score wins</div>
+        </button>
+        <button onClick={()=>{const so=startSuperOver(tieMatch,3);setMatch(so);setHist([]);setTieMatch(null);setModal(getPending(so));setScreen("match")}} style={{padding:"18px",borderRadius:14,border:"1px solid rgba(245,158,11,0.4)",background:"rgba(245,158,11,0.07)",color:"#FDE68A",fontSize:14,fontWeight:600,cursor:"pointer",textAlign:"left"}}>
+          <div style={{fontWeight:700,marginBottom:4}}>🎯 Mini Super Over — 3 balls each</div>
+          <div style={{fontSize:12,color:"rgba(245,158,11,0.5)"}}>Three balls. Win from the edge</div>
+        </button>
+      </div>
+    </div>}
+    {screen==="summary"&&match&&<SummaryScreen match={match} onHome={()=>setScreen("home")} onRecord={recordResult} recorded={recorded}/>}
+    {screen==="points"&&<PointsScreen table={ptTable} setTable={savePts}/>}
+    {screen==="history"&&<HistoryScreen matches={pastMatches} onBack={()=>go("home")}/>}
+    {screen==="network"&&<NetworkScreen userId={userId} userName={userName} currentNet={network} onJoin={handleJoinNet} onCreate={handleCreateNet} onLeave={handleLeaveNet} onBack={()=>go("home")}/>}
+    {screen!=="login"&&screen!=="loading"&&<BottomNav screen={screen} navItems={navItems} open={navOpen} setOpen={setNavOpen} setScreen={go}/>}
+  </div>
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(React.createElement(App));
+</script>
+</body>
+</html>
