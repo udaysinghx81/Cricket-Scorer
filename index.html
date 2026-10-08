@@ -18,14 +18,16 @@ body{background:#050508;color:#EEF2FF;-webkit-tap-highlight-color:transparent;ov
 input,select,button,textarea{font-family:inherit}
 select option{background:#08080f}
 input[type=number]::-webkit-inner-spin-button{opacity:.5}
-::-webkit-scrollbar{width:3px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:rgba(14,165,233,0.25);border-radius:4px}
-#ambient{position:fixed;inset:0;pointer-events:none;z-index:0;
-  background:
-    radial-gradient(ellipse 130% 55% at 50% 115%, rgba(14,165,233,0.16) 0%, transparent 55%),
-    radial-gradient(ellipse 70% 50% at 88% -8%, rgba(109,40,217,0.11) 0%, transparent 52%),
-    radial-gradient(ellipse 55% 40% at 8% 35%, rgba(220,38,38,0.06) 0%, transparent 50%),
-    radial-gradient(ellipse 80% 35% at 50% 50%, rgba(14,165,233,0.03) 0%, transparent 65%);
-  animation:ambPulse 10s ease-in-out infinite}
+// For Firebase JS SDK v7.20.0 and later, measurementId is optional
+const firebaseConfig = {
+  apiKey: "AIzaSyCNpCts5dWBJZK78cClYLogs3bn6rEBb_E",
+  authDomain: "network-hub-29988.firebaseapp.com",
+  projectId: "network-hub-29988",
+  storageBucket: "network-hub-29988.firebasestorage.app",
+  messagingSenderId: "398464052053",
+  appId: "1:398464052053:web:6d09bffd8d7c882a069ddc",
+  measurementId: "G-M4QW1RDRPJ"
+};
 @keyframes ambPulse{0%,100%{opacity:.75}50%{opacity:1}}
 #root{position:relative;z-index:1}
 @keyframes scoreGlow{0%,100%{text-shadow:0 0 30px rgba(14,165,233,0.35),0 0 60px rgba(14,165,233,0.15)}50%{text-shadow:0 0 50px rgba(14,165,233,0.55),0 0 100px rgba(14,165,233,0.25)}}
